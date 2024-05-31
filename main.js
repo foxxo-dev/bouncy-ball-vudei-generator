@@ -5,12 +5,18 @@ const exportButton = document.getElementById('exportButton');
 const audio = new Audio('song.midi');
 
 const frameRate = 30; // 30 frames per second
-const duration = 60; // 1 minute
-const totalFrames = frameRate * duration;
+var duration = 60; // 1 minute
+var totalFrames = frameRate * duration;
 // TYPES: enlarge, shrinkMainCircle, music, classic
-const type = 'enlarge';
+var type = 'shrinkMainCircle';
+var title = 'The Ball Simulation';
 
-const title = 'The ball slowly gets bigger';
+function updateDuration() {
+  duration = document.getElementById('duration').value;
+  totalFrames = frameRate * duration;
+}
+
+console.log(title, type);
 
 class Ball {
   constructor(radius, color) {
@@ -18,9 +24,9 @@ class Ball {
     this.color = color;
     this.x = canvas.width / 2;
     this.y = canvas.height / 2;
-    this.dx = 5;
-    this.dy = 5;
-    this.vx = -5;
+    this.dx = 10; // Increase this value for faster horizontal movement
+    this.dy = 10; // Increase this value for faster vertical movement
+    this.vx = 0;
     this.vy = 20;
 
     this.lastPositions = [{ x: this.x, y: this.y }];
@@ -28,21 +34,26 @@ class Ball {
     this.draw();
 
     setInterval(() => {
-      this.lastPositions.push({ x: this.x, y: this.y });
-    }, 50);
+      //   this.lastPositions.push({ x: this.x, y: this.y });
+    }, 20);
   }
 
   drawTrail() {
+    let alpha = 0;
     this.lastPositions.forEach((position, index) => {
       context.beginPath();
       context.arc(position.x, position.y, this.radius, 0, 2 * Math.PI);
-      context.fillStyle = '#aa00ff';
-      context.globalAlpha = 0.5;
+      context.fillStyle =
+        'hsl(' + (index * 360) / this.lastPositions.length + ', 100%, 50%)';
+      context.globalAlpha = alpha;
+      if (alpha < 0.8) {
+        alpha += 0.5;
+      }
       context.fill();
       context.closePath();
     });
     // remove the 5th position
-    if (this.lastPositions.length > 5) {
+    if (this.lastPositions.length > 15) {
       this.lastPositions.shift();
     }
   }
@@ -58,7 +69,7 @@ class Ball {
   }
 
   runGravity() {
-    // this.vy += 0.05;
+    this.vy += Math.random() * (0.08 - 0.03) + 0.03;
   }
 
   move() {
@@ -70,7 +81,6 @@ class Ball {
   }
 
   bounce() {
-    const centerCircleRadius = 200;
     const distanceFromCenter = Math.sqrt(
       (this.x - canvas.width / 2) ** 2 + (this.y - canvas.height / 2) ** 2,
     );
@@ -80,22 +90,30 @@ class Ball {
         this.x - canvas.width / 2,
       );
       const newAngle =
-        angle + Math.PI + (Math.random() * (Math.PI / 4) + Math.PI / 12); // Add random angle between 15 and 45 degrees in radians
+        angle + Math.PI + (Math.random() * (Math.PI / 9) + Math.PI / 36); // Add random angle between 5 and 80 degrees in radians
       this.vx = Math.cos(newAngle) * this.dx;
       this.vy = Math.sin(newAngle) * this.dy;
+      if (type === 'shrinkMainCircle') {
+        enlargeCenterCircle(2); // Decrease radius
+      }
+      if (type === 'enlarge') {
+        this.enlargeBall(1.05);
+        enlargeCenterCircle(-1.5);
+      }
     }
+
     if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
       this.vx = -this.vx + 20;
       this.vx += 1;
-      if (type === 'shrinkMainCircle') enlargeCenterCircle(-50); // Decrease radius
     }
     if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
       this.vy = -this.vy + 20;
       this.vx += 0.1;
-      if (type === 'shrinkMainCircle') enlargeCenterCircle(-50); // Decrease radius
     }
     this.vx *= 1.00001;
-    if (type === 'enlarge') this.enlargeBall(1.001);
+    if (type == 'shrinkMainCircle') {
+      enlargeCenterCircle(-0.04);
+    }
   }
 
   enlargeBall(multiplier) {
@@ -103,18 +121,46 @@ class Ball {
   }
 }
 
-const ball = new Ball(20, 'red');
+const ball = new Ball(20, 'white');
 
 function drawFrame(frameNumber) {
+  type = document.getElementById('type').value || type;
+  title = document.getElementById('title').value || title;
+  console.log(document.getElementById('type').value);
   context.globalAlpha = 1;
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = 'black';
   context.fillRect(0, 0, canvas.width, canvas.height);
   drawCenterCircle(context);
   context.fillStyle = 'white';
-  context.font = '24px Helvetica';
-  context.fillText(title, 10, 50);
+  context.font = 'bold 48px Helvetica';
+
+  const maxWidth = canvas.width * 0.9;
+  const lineHeight = 56; // Slightly more than font size to ensure spacing
+
+  wrapText(context, title, canvas.width / 2, 80, maxWidth, lineHeight);
   ball.move();
+}
+
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let testLine = '';
+  let testWidth = 0;
+
+  for (let n = 0; n < words.length; n++) {
+    testLine = line + words[n] + ' ';
+    testWidth = context.measureText(testLine).width;
+
+    if (testWidth > maxWidth && n > 0) {
+      context.fillText(line, x - context.measureText(line).width / 2, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  context.fillText(line, x - context.measureText(line).width / 2, y);
 }
 
 var centerCircleRadius = 200;
